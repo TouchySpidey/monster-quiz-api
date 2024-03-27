@@ -39,7 +39,7 @@ router.get('/api/quiz', async (req, res) => {
         return res.status(200).json(response);
     }
     const [availableOptions] = await global.db.execute(`SELECT UID, name
-    FROM monsters`);
+    FROM mq_monsters`);
     response.availableOptions = availableOptions;
     res.status(200).json(response);
 });
@@ -54,7 +54,7 @@ router.post('/api/guess', async (req, res) => {
     const guessRows = await getUserGuesses(userUID);
     const guessRowsNum = guessRows.length;
 
-    await global.db.execute(`INSERT INTO guesses
+    await global.db.execute(`INSERT INTO mq_guesses
     (userUID, quizDate, guessNum, exactGuessUID, hintCR, hintHP, hintMovement, hintSize, hintAlignment, hintType)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [userUID, quiz.quizDate, guessRowsNum + 1, guess.exactGuessUID || null, guess.hintCR || null, guess.hintHP || null, guess.hintMovement || null, guess.hintSize || null, guess.hintAlignment || null, guess.hintType || null]);
 
@@ -75,7 +75,7 @@ router.post('/api/guess', async (req, res) => {
 
     // now find all possible answers that user can still give
     const query = `SELECT UID, name
-    FROM monsters
+    FROM mq_monsters
     ${queryParts.length ? 'WHERE' : ''} ${queryParts.join(' AND ')}`;
     const completeQuery = global.mysql.format(query, params);
     const [availableOptions] = await global.db.query(completeQuery);
@@ -168,8 +168,8 @@ async function getImagePath(guessesNumber = 0) {
 async function getQuiz() {
     const formattedDate = new Date().toISOString().split('T')[0];
     const [quizRow] = await global.db.execute(`SELECT *
-    FROM quizzes
-    JOIN monsters
+    FROM mq_quizzes
+    JOIN mq_monsters
     ON monsterUID = UID
     WHERE quizDate = ?`, [formattedDate]);
     if (!quizRow.length) {
@@ -182,7 +182,7 @@ async function getQuiz() {
 async function getUserGuesses(userUID) {
     const formattedDate = new Date().toISOString().split('T')[0];
     const [guessRows] = await global.db.execute(`SELECT *
-    FROM guesses
+    FROM mq_guesses
     WHERE userUID = ? AND quizDate = ?
     ORDER BY guessNum asc`, [userUID, formattedDate]);
     return guessRows;
@@ -191,7 +191,7 @@ async function getUserGuesses(userUID) {
 async function hasWon(userUID) {
     const quiz = await getQuiz();
     const [winningRow] = await global.db.execute(`SELECT *
-        FROM guesses
+        FROM mq_guesses
         WHERE userUID = ? AND quizDate = ? AND exactGuessUID = ?`, [userUID, quiz.quizDate, quiz.monsterUID]);
     if (winningRow.length) {
         return true;
